@@ -78,8 +78,8 @@ pipeline
             agent {label 'Levi-CYBER-3120-app-server'}
             
             steps
-            echo 'Starting deployment using docker-compose...'
             {
+                echo 'Starting deployment using docker-compose...'
                 script
                 {
                     dir("${WORKSPACE}")
@@ -90,8 +90,8 @@ pipeline
                     '''
 
                 }
+                    echo 'Deployment completed successfully!'
             }
-            echo 'Deployment completed successfully!'
         }        
     }        
 }
