@@ -3,7 +3,7 @@ services:
   game-test-app-auto:
     image: tommy6769/levigametest:latest
     build: .
-    container_name: game-test-app-auto01
+    container_name: game-test-app-auto
     ports:
       - "80:3000"
     environment: 
