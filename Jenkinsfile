@@ -38,7 +38,7 @@ pipeline
                 {
                     // Build docker image using jenkins docker pipeline API
                     echo "Building Docker image ${IMAGE_NAME}..."
-                    app = docker.Build("${IMAGE_NAME}")
+                    app = docker.build("${IMAGE_NAME}")
                     app.tag("latest")
 
                 }
