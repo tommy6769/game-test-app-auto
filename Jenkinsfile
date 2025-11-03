@@ -34,6 +34,23 @@ pipeline
             }
         }
 
+
+        stage('SonarQube Analysis') {
+            agent {
+            label 'Levi-CYBER-3120-app-server'
+            }
+            steps {
+                script {
+                    def scannerHome = tool 'SonarQube-Scanner'
+                    withSonarQubeEnv('sonarqube') {
+                        sh "${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=gameapp \
+                            -Dsonar.sources=."
+                    }
+                }
+            }
+        }
+
         stage('BUILD-AND-TAG')
         {
             agent { label 'Levi-CYBER-3120-app-server'}
