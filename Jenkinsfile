@@ -28,7 +28,7 @@ pipeline
 
         stage('BUILD-AND-TAG')
         {
-            agent {label 'Levi-CYBER-3120-app-server'}
+            agent {label 'CYBER-3120'}
             
             steps
             {
@@ -47,7 +47,7 @@ pipeline
 
         stage('POST-TO-DOCKERHUB')
         {
-            agent {label 'Levi-CYBER-3120-app-server'}
+            agent {label 'CYBER-3120'}
             
             steps
             {
@@ -75,7 +75,7 @@ pipeline
 
         stage('Deployment')
         {
-            agent {label 'Levi-CYBER-3120-app-server'}
+            agent {label 'CYBER-3120'}
             
             steps
             {
