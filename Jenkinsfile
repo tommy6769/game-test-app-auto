@@ -1,115 +1,97 @@
-pipeline {
+pipeline
+{
     agent any
- 
-    environment {
-        IMAGE_NAME = "tommy6769/levigametest"
-        TRIVY_SEVERITY = "HIGH,CRITICAL"
+    environment 
+    {
+        // Docker Hub credentials ID stored in Jenkins
+        DOCKERHUB_CREDENTIALS ='CYBR-3120'
+        IMAGE_NAME ='tommy6769/levigametest'
     }
- 
-    stages {
- 
-        stage("Check Docker Availability") {
-            steps {
-                script {
-                    echo 'Checking Docker installation...'
-                    def dockerCheck = sh(script: 'which docker', returnStatus: true)
-                    if (dockerCheck != 0) {
-                        error "Docker command not found! Please install Docker or mount /var/run/docker.sock."
+
+    stages
+    {
+        stage('Cloning Git')
+        {
+            steps
+            {
+                checkout scm
+            }
+        }
+
+        stage('SAST')
+        {
+            steps
+            {
+                sh 'echo Running SAST scan with snyk...'
+            }
+        }
+
+        stage('BUILD-AND-TAG')
+        {
+            agent {label 'Levi-CYBER-3120-app-server'}
+            
+            steps
+            {
+
+
+                script
+                {
+                    // Build docker image using jenkins docker pipeline API
+                    echo "Building Docker image ${IMAGE_NAME}..."
+                    app = docker.build("${IMAGE_NAME}")
+                    app.tag("latest")
+
+                }
+            }
+        }
+
+        stage('POST-TO-DOCKERHUB')
+        {
+            agent {label 'Levi-CYBER-3120-app-server'}
+            
+            steps
+            {
+
+
+                script
+                {
+                    echo "Pushing image ${IMAGE_NAME}:latest to Docker Hub..."
+                    docker.withRegistry('https://registry.hub.docker.com',"${DOCKERHUB_CREDENTIALS}")
+                    {
+                     app.push("latest")
                     }
-                    sh 'docker --version'
+
                 }
             }
         }
- 
-        stage("Pull Target Container Image") {
-            steps {
-                script {
-                    echo "Pulling image: ${IMAGE_NAME}"
-                    sh "docker pull ${IMAGE_NAME}"
-                }
+
+        stage('DAST')
+        {
+            steps
+            {
+                sh 'echo Running DAST scan...'
             }
-        }
- 
-        stage("Container Vulnerability Scan (Trivy)") {
-            steps {
-                script {
-                    echo "Scanning Docker image ${IMAGE_NAME} for vulnerabilities..."
- 
-                    // JSON report
-                    sh """
-                        docker run --rm -v \$(pwd):/workspace aquasec/trivy:latest image \
-                        --exit-code 0 \
-                        --format json \
-                        --output /workspace/trivy-report.json \
-                        --severity ${TRIVY_SEVERITY} \
-                        ${IMAGE_NAME}
-                    """
- 
-                    // HTML report
-                    sh """
-                        docker run --rm -v \$(pwd):/workspace aquasec/trivy:latest image \
-                        --exit-code 0 \
-                        --format template \
-                        --template "@/contrib/html.tpl" \
-                        --output /workspace/trivy-report.html \
-                        ${IMAGE_NAME}
-                    """
+        }        
+
+        stage('Deployment')
+        {
+            agent {label 'Levi-CYBER-3120-app-server'}
+            
+            steps
+            {
+                echo 'Starting deployment using docker-compose...'
+                script
+                {
+                    dir("${WORKSPACE}")
+                    sh '''
+                        docker-compose down
+                        docker-compose up -d
+                        docker ps
+                    '''
+
                 }
+                    echo 'Deployment completed successfully!'
             }
-            post {
-                always {
-                    echo "Archiving Trivy reports..."
-                    archiveArtifacts artifacts: 'trivy-report.json,trivy-report.html', allowEmptyArchive: true
-                }
-            }
-        }
- 
-        stage("Summarize Vulnerabilities") {
-            steps {
-                script {
-                    if (fileExists('trivy-report.json')) {
-                        def reportContent = readFile('trivy-report.json')
-                        def reportJson = new groovy.json.JsonSlurper().parseText(reportContent)
- 
-                        def highCount = 0
-                        def criticalCount = 0
- 
-                        reportJson.Results.each { result ->
-                            result.Vulnerabilities?.each { vuln ->
-                                switch (vuln.Severity) {
-                                    case 'HIGH': highCount++; break
-                                    case 'CRITICAL': criticalCount++; break
-                                }
-                            }
-                        }
- 
-                        echo "HIGH vulnerabilities: ${highCount}"
-                        echo " CRITICAL vulnerabilities: ${criticalCount}"
- 
-                        if (criticalCount > 0) {
-                            error "Critical vulnerabilities detected: ${criticalCount}"
-                        }
-                    } else {
-                        echo "Trivy JSON report not found!"
-                    }
-                }
-            }
-        }
-    }
- 
-    post {
-        always {
-            echo 'Container Security Scan completed.'
- 
-            // Publish HTML report in Jenkins UI
-            publishHTML([
-                reportDir: '.',
-                reportFiles: 'trivy-report.html',
-                reportName: 'Trivy Vulnerability Report',
-                keepAll: true,
-                alwaysLinkToLastBuild: true,
-                allowMissing: true
-            ])
-        }
-    }
+        }        
+    }        
 }
